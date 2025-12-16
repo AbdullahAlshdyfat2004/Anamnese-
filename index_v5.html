@@ -516,6 +516,39 @@ function updateJsonBox() {
 }
 
 /**
+ * Übersetzt einen Schlüssel in die aktuelle Sprache.
+ * @param {string} key - Der Übersetzungsschlüssel.
+ * @returns {string} - Die Übersetzung oder der Schlüssel selbst.
+ */
+function getTranslation(key) {
+    // Falls APP_STATE existiert, verwende dessen Sprache, sonst verwende 'de'
+    const lang = (typeof APP_STATE !== 'undefined' && APP_STATE.language) ? APP_STATE.language : 
+                 (typeof AppState !== 'undefined' && AppState.language) ? AppState.language : 'de';
+    
+    if (!window.APP_DATA || !window.APP_DATA.translations) return key;
+    const trans = window.APP_DATA.translations[lang];
+    const labelKey = `label_${key}`;
+    return trans?.[labelKey] || trans?.[key] || key;
+}
+
+/**
+ * Findet ein Fragenobjekt anhand seiner ID.
+ * @param {string} questionId - Die ID der Frage.
+ * @returns {object|null} - Das Fragenobjekt oder null.
+ */
+function findQuestionById(questionId) {
+    if (!window.APP_DATA || !window.APP_DATA.sections) return null;
+    
+    for (const section of window.APP_DATA.sections) {
+        if (section.fields) {
+            const field = section.fields.find(f => f.id === questionId);
+            if (field) return field;
+        }
+    }
+    return null;
+}
+
+/**
  * Aktualisiert die Zusammenfassungsbox.
  * @param {object} answers - Das Antworten-Objekt.
  */
@@ -1140,12 +1173,47 @@ App.updateJsonBox = updateJsonBox; // Für die Initialisierung
         footer p { margin: 0.25rem 0; }
 
         /* =================================================================
+           DATE SELECT WRAPPER (BIRTHDAY PICKER) - IMPROVED STYLING
+           ================================================================= */
+        .date-select-wrapper {
+            display: grid;
+            grid-template-columns: 1fr 2fr 1.5fr;
+            gap: 12px;
+            margin: 10px 0;
+        }
+        .date-select-wrapper select {
+            padding: 12px 16px;
+            font-size: 1rem;
+            border: 2px solid var(--input-border);
+            border-radius: 8px;
+            background: var(--input-bg);
+            color: var(--input-text);
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .date-select-wrapper select:hover {
+            border-color: var(--primary);
+            background: rgba(0, 123, 255, 0.05);
+        }
+        .date-select-wrapper select:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.2);
+        }
+        .date-select-wrapper select option {
+            padding: 8px;
+        }
+
+        /* =================================================================
            RESPONSIVE
            ================================================================= */
         @media (max-width: 600px) {
             .header-controls { flex-direction: column; }
             .nav-buttons, .action-buttons { flex-direction: column; }
             .btn { min-width: 100%; }
+            .date-select-wrapper {
+                grid-template-columns: 1fr;
+            }
         }
     </style>
 </head>
@@ -1237,14 +1305,13 @@ App.updateJsonBox = updateJsonBox; // Für die Initialisierung
                 <button class="btn btn-success" onclick="App.showDecryptionModal()">
                     🔑 <span data-translate="decrypt_data">Daten entschlüsseln</span>
                 </button>
+                <button class="btn btn-secondary" onclick="App.exportNFC()">
+                    📲 <span data-translate="export_nfc">Export (NFC)</span>
+                </button>
+                <button class="btn btn-secondary" onclick="App.sendEmail()">
+                    📧 <span data-translate="export_email">Export (E-Mail)</span>
+                </button>
             </div>
-        </div>
-    tton class="btn btn-secondary" onclick="App.exportNFC()">
-                📲 <span data-translate="export_nfc">Export (NFC)</span>
-            </button>
-            <button class="btn btn-secondary" onclick="App.sendEmail()">
-                📧 <span data-translate="export_email">Export (E-Mail)</span>
-            </button>
         </div>
 
         <div id="summary-box" class="summary-box hidden">
@@ -1271,7 +1338,18 @@ App.updateJsonBox = updateJsonBox; // Für die Initialisierung
     // Dies simuliert die Daten, die normalerweise von build_anamnese.py generiert werden
     window.APP_DATA = window.APP_DATA = window.APP_DATA = {
         "version": "3.0.0 (Updated by Manus)",
-        "language_names": {},
+        "language_names": {
+            "de": "Deutsch",
+            "en": "English",
+            "fr": "Français",
+            "es": "Español",
+            "it": "Italiano",
+            "tr": "Türkçe",
+            "pl": "Polski",
+            "ru": "Русский",
+            "ar": "العربية",
+            "zh": "中文"
+        },
         "translations": {
                 "de": {
                         "title_q0000": "Basisdaten",
@@ -2079,6 +2157,26 @@ App.updateJsonBox = updateJsonBox; // Für die Initialisierung
                         "0003_tag": "Gün",
                         "0003_monat": "Ay",
                         "0003_jahr": "Yıl"
+                },
+                "pl": {
+                        "json_box_title": "Zaszyfrowane Odpowiedzi (AES-256)",
+                        "export_file_enc": "Eksportuj (Zaszyfrowane)",
+                        "export_file_raw": "Eksportuj (Surowy JSON)",
+                        "decrypt_data": "Odszyfruj Dane",
+                        "export_nfc": "Eksportuj (NFC)",
+                        "export_email": "Eksportuj (E-mail)",
+                        "email_subject": "Odpowiedzi na Wywiad Medyczny",
+                        "email_body": "Załączone są zaszyfrowane odpowiedzi na wywiad medyczny:",
+                        "nfc_success": "Transfer NFC pomyślny.",
+                        "nfc_error": "Błąd transferu NFC: ",
+                        "nfc_simulation": "NFC symulowane. Zaszyfrowane dane są wyświetlane w polu JSON.",
+                        "decryption_prompt": "Proszę wprowadzić zaszyfrowane dane:",
+                        "decryption_success": "Odszyfrowanie pomyślne:",
+                        "decryption_error_json": "Odszyfrowanie pomyślne, ale wynik nie jest prawidłowym JSON.",
+                        "select_placeholder": "Proszę wybrać...",
+                        "0003_tag": "Dzień",
+                        "0003_monat": "Miesiąc",
+                        "0003_jahr": "Rok"
                 }
         },
         "red_flag_fields": [],
@@ -6361,6 +6459,11 @@ App.updateJsonBox = updateJsonBox; // Für die Initialisierung
                 {
                         "id": "q1334",
                         "title": "Gynäkologische Zusatzfragen",
+                        "condition": {
+                                "field": "0002",
+                                "value": "weiblich",
+                                "operator": "=="
+                        },
                         "fields": [
                                 {
                                         "id": "1334_lrb",
@@ -11867,6 +11970,39 @@ App.updateJsonBox = updateJsonBox; // Für die Initialisierung
 
                 AppState.currentStep = index;
                 const section = sections[index];
+                
+                // Check if section has a condition and if it's met
+                if (section.condition) {
+                    const { field, value, operator = '==' } = section.condition;
+                    const answer = AppState.answers[field];
+                    
+                    let conditionMet = false;
+                    if (answer !== undefined && answer !== null && answer !== '') {
+                        switch (operator) {
+                            case '==':
+                                conditionMet = answer == value;
+                                break;
+                            case '!=':
+                                conditionMet = answer != value;
+                                break;
+                            case 'includes':
+                                conditionMet = Array.isArray(answer) && answer.includes(value);
+                                break;
+                        }
+                    }
+                    
+                    // If condition not met, skip to next section
+                    if (!conditionMet) {
+                        // Auto-advance or go back depending on navigation direction
+                        if (index < sections.length - 1) {
+                            this.renderStep(index + 1);
+                        } else {
+                            this.renderStep(index - 1);
+                        }
+                        return;
+                    }
+                }
+                
                 const qa = document.getElementById('question-area');
                 
                 // Title
@@ -12023,6 +12159,11 @@ App.updateJsonBox = updateJsonBox; // Für die Initialisierung
                 
                 this.saveToStorage();
                 this.updateNavButtons();
+                
+                // Update the JSON box and summary whenever an answer changes
+                if (typeof updateJsonBox === 'function') {
+                    updateJsonBox();
+                }
             },
 
             validateField(fieldId, element) {
