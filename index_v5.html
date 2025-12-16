@@ -12368,10 +12368,28 @@ App.updateJsonBox = updateJsonBox; // Für die Initialisierung
                 
                 this.saveToStorage();
                 this.updateNavButtons();
+                this.updateJsonBox();
+            },
+            
+            updateJsonBox() {
+                const jsonBox = document.getElementById('json-answer-box');
+                if (!jsonBox) return;
                 
-                // Update the JSON box and summary whenever an answer changes
-                if (typeof updateJsonBox === 'function') {
-                    updateJsonBox();
+                const data = {
+                    export_date: new Date().toISOString(),
+                    version: window.APP_DATA.version,
+                    language: AppState.language,
+                    answers: AppState.answers
+                };
+                
+                const jsonString = JSON.stringify(data, null, 2);
+                
+                // Check if encryptData function exists (from the old code)
+                if (typeof encryptData === 'function') {
+                    jsonBox.value = encryptData(jsonString);
+                } else {
+                    // Fallback to plain JSON if encryption not available
+                    jsonBox.value = jsonString;
                 }
             },
 
